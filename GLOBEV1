@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My World Journey</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #0a0f1e;
+    color: #e8e4d9;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .stars {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse at 20% 50%, #0d1530 0%, #0a0f1e 60%);
+  }
+
+  header {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.5rem 2.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem; font-weight: 700;
+    background: linear-gradient(135deg, #f0c060, #e8845a);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
+  }
+
+  .stats-bar {
+    display: flex; gap: 2rem;
+    font-size: 0.8rem; color: rgba(232,228,217,0.5);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  .stat-val {
+    color: #f0c060; font-size: 1rem; font-weight: 500;
+    font-family: 'Playfair Display', serif;
+    display: block;
+  }
+
+  .main-layout {
+    position: relative; z-index: 5;
+    display: grid; grid-template-columns: 1fr 380px;
+    min-height: calc(100vh - 76px);
+  }
+
+  .globe-section {
+    display: flex; align-items: center; justify-content: center;
+    padding: 2rem; position: relative;
+  }
+
+  #globe-canvas {
+    border-radius: 50%;
+    cursor: grab;
+    box-shadow: 0 0 80px rgba(240,192,96,0.15), 0 0 200px rgba(10,15,30,0.8);
+  }
+  #globe-canvas:active { cursor: grabbing; }
+
+  .globe-label {
+    position: absolute; bottom: 2.5rem; left: 50%; transform: translateX(-50%);
+    font-size: 0.75rem; color: rgba(232,228,217,0.35);
+    letter-spacing: 0.12em; text-transform: uppercase;
+  }
+
+  .country-tooltip {
+    position: fixed; pointer-events: none;
+    background: rgba(10,15,30,0.95); border: 1px solid rgba(240,192,96,0.3);
+    border-radius: 10px; padding: 10px 14px;
+    font-size: 0.85rem; z-index: 100; opacity: 0;
+    transition: opacity 0.15s; max-width: 200px;
+  }
+  .country-tooltip.visible { opacity: 1; }
+  .tooltip-name { font-weight: 500; color: #f0c060; margin-bottom: 2px; }
+  .tooltip-hint { font-size: 0.72rem; color: rgba(232,228,217,0.4); }
+
+  .sidebar {
+    border-left: 1px solid rgba(255,255,255,0.07);
+    display: flex; flex-direction: column;
+    background: rgba(255,255,255,0.02);
+    height: calc(100vh - 76px);
+    overflow-y: auto;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  .sidebar-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    position: sticky; top: 0;
+    background: rgba(10,15,30,0.95); backdrop-filter: blur(10px);
+    z-index: 5;
+  }
+
+  .sidebar-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem; font-weight: 400;
+    color: #e8e4d9; margin-bottom: 1rem;
+  }
+
+  .search-input {
+    width: 100%; padding: 8px 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; color: #e8e4d9;
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  .search-input::placeholder { color: rgba(232,228,217,0.3); }
+  .search-input:focus { border-color: rgba(240,192,96,0.4); }
+
+  .country-list { padding: 0.75rem; flex: 1; }
+
+  .country-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 10px;
+    cursor: pointer; transition: background 0.15s;
+    margin-bottom: 2px;
+  }
+  .country-item:hover { background: rgba(255,255,255,0.05); }
+
+  .country-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.15);
+  }
+  .country-dot.visited { background: #f0c060; border-color: #f0c060; }
+  .country-dot.unvisited { background: transparent; }
+
+  .country-name { font-size: 0.88rem; flex: 1; }
+  .country-photo-count {
+    font-size: 0.72rem; color: rgba(232,228,217,0.4);
+    background: rgba(240,192,96,0.1);
+    padding: 2px 8px; border-radius: 20px;
+  }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: #111827;
+    border: 1px solid rgba(240,192,96,0.2);
+    border-radius: 20px; width: 640px; max-width: 95vw;
+    max-height: 85vh; overflow-y: auto; padding: 2rem;
+    position: relative;
+  }
+
+  .modal-close {
+    position: absolute; top: 1rem; right: 1rem;
+    background: rgba(255,255,255,0.08); border: none;
+    color: #e8e4d9; width: 32px; height: 32px;
+    border-radius: 50%; cursor: pointer; font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.15); }
+
+  .modal-country-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem; font-weight: 700;
+    background: linear-gradient(135deg, #f0c060, #e8845a);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 0.25rem;
+  }
+
+  .modal-sub { font-size: 0.8rem; color: rgba(232,228,217,0.4); margin-bottom: 1.5rem; }
+
+  .upload-zone {
+    border: 2px dashed rgba(240,192,96,0.25);
+    border-radius: 14px; padding: 2rem;
+    text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    margin-bottom: 1.5rem;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: rgba(240,192,96,0.6);
+    background: rgba(240,192,96,0.04);
+  }
+
+  .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; display: block; }
+  .upload-text { font-size: 0.88rem; color: rgba(232,228,217,0.5); }
+  .upload-text span { color: #f0c060; cursor: pointer; }
+
+  #file-input { display: none; }
+
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
+  .photo-thumb {
+    aspect-ratio: 1; border-radius: 10px; overflow: hidden;
+    position: relative; cursor: pointer;
+    transition: transform 0.2s;
+    background: rgba(255,255,255,0.05);
+  }
+  .photo-thumb:hover { transform: scale(1.02); }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+  .photo-delete {
+    position: absolute; top: 5px; right: 5px;
+    background: rgba(0,0,0,0.7); border: none;
+    color: white; width: 22px; height: 22px; border-radius: 50%;
+    font-size: 0.7rem; cursor: pointer; opacity: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.2s;
+  }
+  .photo-thumb:hover .photo-delete { opacity: 1; }
+
+  .mark-visited-btn {
+    width: 100%; padding: 12px;
+    background: linear-gradient(135deg, #f0c060, #e8845a);
+    border: none; border-radius: 10px;
+    color: #0a0f1e; font-weight: 500; font-size: 0.9rem;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.2s; margin-top: 1rem;
+  }
+  .mark-visited-btn:hover { opacity: 0.88; }
+  .mark-visited-btn.unmark { background: rgba(255,255,255,0.08); color: #e8e4d9; }
+
+  .legend {
+    display: flex; gap: 1.5rem; align-items: center;
+    font-size: 0.75rem; color: rgba(232,228,217,0.45);
+  }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+</style>
+</head>
+<body>
+
+<div class="stars"></div>
+
+<div class="country-tooltip" id="tooltip">
+  <div class="tooltip-name" id="tooltip-name"></div>
+  <div class="tooltip-hint" id="tooltip-hint"></div>
+</div>
+
+<header>
+  <div class="logo">✈ My World Journey</div>
+  <div class="stats-bar">
+    <div><span class="stat-val" id="visited-count">0</span>Countries visited</div>
+    <div><span class="stat-val" id="photo-count">0</span>Photos captured</div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#f0c060"></span>Visited</span>
+      <span><span class="legend-dot" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.2)"></span>Not yet</span>
+    </div>
+  </div>
+</header>
+
+<div class="main-layout">
+  <div class="globe-section">
+    <canvas id="globe-canvas" width="520" height="520"></canvas>
+    <div class="globe-label">Drag to rotate · Click a country to explore</div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Countries</div>
+      <input class="search-input" type="text" id="country-search" placeholder="Search countries...">
+    </div>
+    <div class="country-list" id="country-list"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-country-name" id="modal-country-name"></div>
+    <div class="modal-sub" id="modal-country-sub">No photos yet · Click below to add memories</div>
+
+    <div class="upload-zone" id="upload-zone">
+      <span class="upload-icon">📷</span>
+      <div class="upload-text">Drop photos here or <span onclick="document.getElementById('file-input').click()">browse files</span></div>
+    </div>
+    <input type="file" id="file-input" multiple accept="image/*">
+
+    <div class="photo-grid" id="photo-grid"></div>
+    <button class="mark-visited-btn" id="mark-btn" onclick="toggleVisited()">Mark as Visited</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+const COUNTRIES = [
+  "Afghanistan","Albania","Algeria","Angola","Argentina","Armenia","Australia","Austria","Azerbaijan",
+  "Bangladesh","Belarus","Belgium","Benin","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Bulgaria","Burkina Faso",
+  "Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Congo","Croatia","Cuba","Czech Republic",
+  "Denmark","Dominican Republic","DR Congo",
+  "Ecuador","Egypt","El Salvador","Ethiopia",
+  "Finland","France",
+  "Georgia","Germany","Ghana","Greece","Guatemala","Guinea",
+  "Haiti","Honduras","Hungary",
+  "India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Ivory Coast",
+  "Jamaica","Japan","Jordan",
+  "Kazakhstan","Kenya","Kosovo","Kuwait","Kyrgyzstan",
+  "Laos","Latvia","Lebanon","Libya","Lithuania",
+  "Madagascar","Malawi","Malaysia","Mali","Mexico","Moldova","Mongolia","Morocco","Mozambique","Myanmar",
+  "Namibia","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia",
+  "Norway",
+  "Oman",
+  "Pakistan","Palestine","Panama","Paraguay","Peru","Philippines","Poland","Portugal",
+  "Qatar",
+  "Romania","Russia","Rwanda",
+  "Saudi Arabia","Senegal","Serbia","Sierra Leone","Slovakia","Slovenia","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Sweden","Switzerland","Syria",
+  "Taiwan","Tajikistan","Tanzania","Thailand","Togo","Tunisia","Turkey","Turkmenistan",
+  "Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan",
+  "Venezuela","Vietnam",
+  "Yemen",
+  "Zambia","Zimbabwe"
+];
+
+let state = {
+  visited: JSON.parse(localStorage.getItem('wj_visited') || '[]'),
+  photos: JSON.parse(localStorage.getItem('wj_photos') || '{}'),
+  currentCountry: null,
+  rotation: [0, -20],
+  dragging: false,
+  lastMouse: null,
+};
+
+function save() {
+  localStorage.setItem('wj_visited', JSON.stringify(state.visited));
+  localStorage.setItem('wj_photos', JSON.stringify(state.photos));
+}
+
+const canvas = document.getElementById('globe-canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const R = W * 0.45;
+
+let projection = d3.geoOrthographic()
+  .scale(R)
+  .translate([W/2, H/2])
+  .clipAngle(90)
+  .rotate(state.rotation);
+
+const path = d3.geoPath(projection, ctx);
+
+let countries, hoveredCountry = null;
+
+const ISO_NAMES = {
+  "004":"Afghanistan","008":"Albania","012":"Algeria","024":"Angola","032":"Argentina",
+  "051":"Armenia","036":"Australia","040":"Austria","031":"Azerbaijan","050":"Bangladesh",
+  "112":"Belarus","056":"Belgium","204":"Benin","068":"Bolivia","070":"Bosnia and Herzegovina",
+  "072":"Botswana","076":"Brazil","100":"Bulgaria","854":"Burkina Faso","116":"Cambodia",
+  "120":"Cameroon","124":"Canada","140":"Central African Republic","148":"Chad","152":"Chile",
+  "156":"China","170":"Colombia","178":"Congo","191":"Croatia","192":"Cuba","203":"Czech Republic",
+  "208":"Denmark","214":"Dominican Republic","180":"DR Congo","218":"Ecuador","818":"Egypt",
+  "222":"El Salvador","231":"Ethiopia","246":"Finland","250":"France","268":"Georgia",
+  "276":"Germany","288":"Ghana","300":"Greece","320":"Guatemala","324":"Guinea","332":"Haiti",
+  "340":"Honduras","348":"Hungary","356":"India","360":"Indonesia","364":"Iran","368":"Iraq",
+  "372":"Ireland","376":"Israel","380":"Italy","388":"Jamaica","392":"Japan","400":"Jordan",
+  "398":"Kazakhstan","404":"Kenya","414":"Kuwait","417":"Kyrgyzstan","418":"Laos","428":"Latvia",
+  "422":"Lebanon","434":"Libya","440":"Lithuania","450":"Madagascar","454":"Malawi",
+  "458":"Malaysia","466":"Mali","484":"Mexico","498":"Moldova","496":"Mongolia","504":"Morocco",
+  "508":"Mozambique","104":"Myanmar","516":"Namibia","524":"Nepal","528":"Netherlands",
+  "554":"New Zealand","558":"Nicaragua","562":"Niger","566":"Nigeria","408":"North Korea",
+  "807":"North Macedonia","578":"Norway","512":"Oman","586":"Pakistan","591":"Panama",
+  "600":"Paraguay","604":"Peru","608":"Philippines","616":"Poland","620":"Portugal",
+  "634":"Qatar","642":"Romania","643":"Russia","646":"Rwanda","682":"Saudi Arabia",
+  "686":"Senegal","688":"Serbia","694":"Sierra Leone","703":"Slovakia","705":"Slovenia",
+  "706":"Somalia","710":"South Africa","410":"South Korea","728":"South Sudan","724":"Spain",
+  "144":"Sri Lanka","729":"Sudan","752":"Sweden","756":"Switzerland","760":"Syria",
+  "158":"Taiwan","762":"Tajikistan","834":"Tanzania","764":"Thailand","768":"Togo",
+  "788":"Tunisia","792":"Turkey","795":"Turkmenistan","800":"Uganda","804":"Ukraine",
+  "784":"United Arab Emirates","826":"United Kingdom","840":"United States","858":"Uruguay",
+  "860":"Uzbekistan","862":"Venezuela","704":"Vietnam","887":"Yemen","894":"Zambia","716":"Zimbabwe"
+};
+
+function getCountryName(feature) {
+  const id = String(feature.id).padStart(3, '0');
+  return ISO_NAMES[id] || null;
+}
+
+function isVisited(name) { return name && state.visited.includes(name); }
+
+let spinning = true, spinAnimId = null;
+
+function startSpin() {
+  if (spinAnimId) cancelAnimationFrame(spinAnimId);
+  function tick() {
+    if (spinning && !state.dragging) {
+      state.rotation[0] += 0.15;
+      projection.rotate(state.rotation);
+    }
+    draw();
+    spinAnimId = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, R, 0, Math.PI*2);
+  ctx.fillStyle = '#0d1a3a';
+  ctx.fill();
+
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = '#4a7fc0';
+  ctx.lineWidth = 0.5;
+  try { ctx.beginPath(); path(d3.geoGraticule()()); ctx.stroke(); } catch(e){}
+  ctx.restore();
+
+  if (!countries) return;
+
+  countries.forEach(f => {
+    const name = getCountryName(f);
+    const visited = isVisited(name);
+    const hovered = hoveredCountry && getCountryName(hoveredCountry) === name;
+
+    ctx.beginPath();
+    path(f);
+
+    if (visited) {
+      ctx.fillStyle = hovered ? '#ffd060' : '#f0c060';
+      ctx.globalAlpha = hovered ? 0.95 : 0.82;
+    } else {
+      ctx.fillStyle = hovered ? '#2a4a7a' : '#1a3055';
+      ctx.globalAlpha = hovered ? 0.9 : 0.7;
+    }
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#0a0f1e';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  });
+
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, R, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(240,192,96,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  const atm = ctx.createRadialGradient(W/2, H/2, R*0.9, W/2, H/2, R*1.08);
+  atm.addColorStop(0, 'rgba(100,150,255,0)');
+  atm.addColorStop(1, 'rgba(100,150,255,0.06)');
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, R*1.08, 0, Math.PI*2);
+  ctx.fillStyle = atm;
+  ctx.fill();
+}
+
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+  .then(r => r.json())
+  .then(data => {
+    countries = topojson.feature(data, data.objects.countries).features;
+    draw();
+    startSpin();
+  });
+
+canvas.addEventListener('mousedown', e => {
+  state.dragging = true; spinning = false;
+  state.lastMouse = [e.clientX, e.clientY];
+});
+window.addEventListener('mouseup', () => {
+  state.dragging = false;
+  setTimeout(() => { spinning = true; }, 2000);
+});
+window.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX, my = e.clientY;
+
+  if (state.dragging && state.lastMouse) {
+    const dx = mx - state.lastMouse[0], dy = my - state.lastMouse[1];
+    state.rotation[0] += dx * 0.4;
+    state.rotation[1] = Math.max(-85, Math.min(85, state.rotation[1] - dy * 0.4));
+    projection.rotate(state.rotation);
+    state.lastMouse = [mx, my];
+  }
+
+  const cx = mx - rect.left, cy = my - rect.top;
+  const dist = Math.sqrt((cx - W/2)**2 + (cy - H/2)**2);
+  const tooltip = document.getElementById('tooltip');
+
+  if (dist <= R && countries) {
+    const coords = projection.invert([cx, cy]);
+    if (coords) {
+      let found = null;
+      countries.forEach(f => { if (!found) { try { if (d3.geoContains(f, coords)) found = f; } catch(e){} } });
+      hoveredCountry = found;
+      if (found) {
+        const name = getCountryName(found);
+        if (name) {
+          document.getElementById('tooltip-name').textContent = name;
+          const count = (state.photos[name] || []).length;
+          document.getElementById('tooltip-hint').textContent = isVisited(name)
+            ? `${count} photo${count!==1?'s':''} · Click to explore`
+            : 'Click to add this country';
+          tooltip.style.left = (mx+12)+'px';
+          tooltip.style.top = (my-10)+'px';
+          tooltip.classList.add('visible');
+          canvas.style.cursor = 'pointer';
+        }
+      } else {
+        tooltip.classList.remove('visible');
+        canvas.style.cursor = state.dragging ? 'grabbing' : 'grab';
+      }
+    }
+  } else {
+    hoveredCountry = null;
+    tooltip.classList.remove('visible');
+  }
+});
+
+canvas.addEventListener('click', () => {
+  if (hoveredCountry) {
+    const name = getCountryName(hoveredCountry);
+    if (name) openModal(name);
+  }
+});
+
+function openModal(name) {
+  state.currentCountry = name;
+  document.getElementById('modal-country-name').textContent = name;
+  updateModal();
+  document.getElementById('modal').classList.add('open');
+}
+
+function updateModal() {
+  const name = state.currentCountry;
+  const photos = state.photos[name] || [];
+  const visited = isVisited(name);
+
+  document.getElementById('modal-country-sub').textContent = visited
+    ? `${photos.length} photo${photos.length!==1?'s':''} captured`
+    : 'Not yet visited · Mark as visited and add your photos';
+
+  const grid = document.getElementById('photo-grid');
+  grid.innerHTML = '';
+  photos.forEach((dataUrl, i) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'photo-thumb';
+    thumb.innerHTML = `<img src="${dataUrl}" alt="Photo ${i+1}"><button class="photo-delete" onclick="deletePhoto(${i})">×</button>`;
+    grid.appendChild(thumb);
+  });
+
+  const btn = document.getElementById('mark-btn');
+  btn.textContent = visited ? 'Remove from Visited' : '✓ Mark as Visited';
+  visited ? btn.classList.add('unmark') : btn.classList.remove('unmark');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  state.currentCountry = null;
+  updateStats(); renderList();
+}
+
+function toggleVisited() {
+  const name = state.currentCountry;
+  if (isVisited(name)) state.visited = state.visited.filter(c => c !== name);
+  else state.visited.push(name);
+  save(); updateModal();
+}
+
+function deletePhoto(i) {
+  const name = state.currentCountry;
+  state.photos[name] = (state.photos[name] || []).filter((_, idx) => idx !== i);
+  save(); updateModal(); updateStats();
+}
+
+document.getElementById('file-input').addEventListener('change', e => handleFiles(e.target.files));
+
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+uploadZone.addEventListener('click', () => document.getElementById('file-input').click());
+
+function handleFiles(files) {
+  const name = state.currentCountry;
+  if (!name) return;
+  if (!state.photos[name]) state.photos[name] = [];
+  if (!isVisited(name)) state.visited.push(name);
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => { state.photos[name].push(e.target.result); save(); updateModal(); updateStats(); };
+    reader.readAsDataURL(file);
+  });
+}
+
+function updateStats() {
+  document.getElementById('visited-count').textContent = state.visited.length;
+  document.getElementById('photo-count').textContent = Object.values(state.photos).reduce((s, a) => s + a.length, 0);
+}
+
+function renderList(filter = '') {
+  const list = document.getElementById('country-list');
+  const q = filter.toLowerCase();
+  const sorted = [...COUNTRIES].sort((a,b) => {
+    const av = isVisited(a), bv = isVisited(b);
+    if (av && !bv) return -1; if (bv && !av) return 1;
+    return a.localeCompare(b);
+  });
+  list.innerHTML = '';
+  sorted.filter(c => c.toLowerCase().includes(q)).forEach(name => {
+    const visited = isVisited(name);
+    const count = (state.photos[name] || []).length;
+    const item = document.createElement('div');
+    item.className = 'country-item' + (visited ? ' visited' : '');
+    item.innerHTML = `<div class="country-dot ${visited?'visited':'unvisited'}"></div>
+      <span class="country-name">${name}</span>
+      ${count > 0 ? `<span class="country-photo-count">${count} 📷</span>` : ''}`;
+    item.onclick = () => openModal(name);
+    list.appendChild(item);
+  });
+}
+
+document.getElementById('country-search').addEventListener('input', e => renderList(e.target.value));
+
+updateStats();
+renderList();
+</script>
+</body>
+</html>
